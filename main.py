@@ -3,15 +3,10 @@ import requests
 import pandas as pd
 from io import StringIO
 import time
-from dotenv import load_dotenv
-import os
 
-# Load environment variables from .env file
-load_dotenv()
+# Retrieve the API key from Streamlit secrets
+API_KEY = st.secrets["google"]["GOOGLE_MAPS_API"]
 
-# Retrieve the API key from the environment
-API_KEY = os.getenv('GOOGLE_MAPS_API')
-print(API_KEY)
 def find_practices(location):
     search_url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
     search_params = {
@@ -22,6 +17,10 @@ def find_practices(location):
     practice_details = []
     while True:
         response = requests.get(search_url, params=search_params)
+        if response.status_code != 200:
+            st.error(f"Error: Unable to fetch data from the API. Status code: {response.status_code}")
+            return []
+
         data = response.json()
         places = data.get('results', [])
         
@@ -35,8 +34,10 @@ def find_practices(location):
             }
 
             details_response = requests.get(details_url, params=details_params)
-            details = details_response.json().get('result', {})
+            if details_response.status_code != 200:
+                continue
 
+            details = details_response.json().get('result', {})
             practice_info = {
                 "name": details.get("name"),
                 "address": details.get("formatted_address"),
@@ -62,25 +63,30 @@ def convert_to_csv(data):
     df.to_csv(output, index=False)
     return output.getvalue()
 
-st.title("Google maps scraper for health services")
+# Streamlit UI
+st.title("Google Maps Scraper for Health Services")
 st.write("Enter a location to find and download the data as a CSV.")
 
 location = st.text_input("Location", "London")
 
 if st.button("Fetch Data"):
-    practices = find_practices(location)
-
-    if practices:
-        df = pd.DataFrame(practices)
-        st.write("Results:")
-        st.dataframe(df)
-
-        csv_data = convert_to_csv(practices)
-        st.download_button(
-            label="Download data as CSV",
-            data=csv_data,
-            file_name="TMS_practices.csv",
-            mime="text/csv"
-        )
+    if not API_KEY:
+        st.error("API key is missing. Please configure it in your Streamlit secrets.")
     else:
-        st.write("No results found.")
+        st.info("Fetching data. Please wait...")
+        practices = find_practices(location)
+
+        if practices:
+            df = pd.DataFrame(practices)
+            st.write("Results:")
+            st.dataframe(df)
+
+            csv_data = convert_to_csv(practices)
+            st.download_button(
+                label="Download data as CSV",
+                data=csv_data,
+                file_name="health_practices.csv",
+                mime="text/csv"
+            )
+        else:
+            st.write("No results found.")
