@@ -29,7 +29,7 @@ def find_practices(location):
             details_url = "https://maps.googleapis.com/maps/api/place/details/json"
             details_params = {
                 "place_id": place_id,
-                "fields": "name,formatted_address,formatted_phone_number,website,opening_hours,rating",
+                "fields": "name,formatted_address,formatted_phone_number,website,opening_hours,rating,user_ratings_total",
                 "key": API_KEY
             }
 
@@ -44,7 +44,8 @@ def find_practices(location):
                 "phone_number": details.get("formatted_phone_number"),
                 "website": details.get("website"),
                 "opening_hours": details.get("opening_hours", {}).get("weekday_text"),
-                "rating": details.get("rating")
+                "rating": details.get("rating"),
+                "no_of_reviews": details.get("user_ratings_total") 
             }
             practice_details.append(practice_info)
 
